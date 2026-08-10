@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A newer push to the same branch makes the running job obsolete; cancelling it
+# keeps the queue short rather than burning minutes on a superseded commit.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Pinned: an unpinned linter turns an unrelated upstream release into a
+      # red build on a commit that changed nothing.
+      - name: Install ruff
+        run: pip install ruff==0.16.1
+      - name: Lint
+        run: ruff check .
+
+  test:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.10 is the declared floor -- the code uses PEP 604 annotations and
+        # Path.is_relative_to. 3.12 is what the harness is developed against.
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      # The test suite and the replay/scripted backends import no third-party
+      # code -- only pytest itself. The SDK is needed only to record new
+      # cassettes, which CI never does.
+      - name: Install pytest
+        run: pip install pytest==8.3.3
+      - name: Run tests
+        run: pytest -q
+      - name: Smoke-test the demo and the scripted experiment
+        run: |
+          python demo.py
+          python indirect-prompt-injection/run_experiment.py \
+            --backend scripted --allow-scripted-results --seeds 2
+          python tool-description-poisoning/run_experiment.py \
+            --backend scripted --allow-scripted-results --seeds 2
