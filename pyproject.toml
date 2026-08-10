@@ -29,5 +29,5 @@ select = [
 # The repository root carries the shared `agent_lab` package; each module
 # directory carries its own `src`. Both are on the path so a module's tests can
 # import its own code as `src.*` and the shared code as `agent_lab.*`.
-testpaths = ["tests", "indirect-prompt-injection/tests"]
-pythonpath = [".", "indirect-prompt-injection"]
+testpaths = ["tests", "indirect-prompt-injection/tests", "tool-description-poisoning/tests"]
+pythonpath = [".", "indirect-prompt-injection", "tool-description-poisoning"]
