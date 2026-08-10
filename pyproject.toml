@@ -1,0 +1,30 @@
+# Lint and test configuration for the whole lab. Kept at the repository root so
+# every module is held to the same rules as it is added.
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes -- unused imports and names, undefined references
+    "W",    # pycodestyle warnings
+    "I",    # import sorting
+    "UP",   # pyupgrade
+    "B",    # bugbear -- likely bugs rather than style
+    "SIM",  # simplification
+    "RUF",  # ruff-specific
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests reach into private attributes on purpose: the layout being asserted is
+# exactly the thing under test, and it has no public accessor.
+"**/tests/*" = ["SLF001"]
+
+[tool.pytest.ini_options]
+# The repository root carries the shared `agent_lab` package; each module
+# directory carries its own `src`. Both are on the path so a module's tests can
+# import its own code as `src.*` and the shared code as `agent_lab.*`.
+testpaths = ["tests"]
+pythonpath = ["."]

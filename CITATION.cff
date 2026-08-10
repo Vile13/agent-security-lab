@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software or refer to its results, please cite it using
+  the metadata below.
+title: "agent-security-lab"
+abstract: >-
+  Research and engineering lab investigating the security of tool-using AI
+  agents, including indirect prompt injection via poisoned retrieval corpora
+  and the empirical evaluation of probabilistic and deterministic mitigations
+  against secret exfiltration.
+type: software
+authors:
+  - family-names: "Reers"
+    given-names: "Volker"
+    # orcid: "https://orcid.org/xxxx-xxxx-xxxx-xxxx"
+repository-code: "https://github.com/Vile13/agent-security-lab"
+license: Apache-2.0
+version: 0.1.0
+date-released: "2026-08-10"
+keywords:
+  - AI security
+  - agent security
+  - indirect prompt injection
+  - RAG security
+  - LLM red teaming
