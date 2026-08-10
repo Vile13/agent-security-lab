@@ -1,0 +1,6 @@
+Results are written here by run_experiment.py.
+
+Intentionally empty in version control until a run is recorded against a real
+model (--backend record) and its cassette committed. A results table is a claim
+about a model, so it is only filled in from a model -- never from the scripted
+harness. See the module README.

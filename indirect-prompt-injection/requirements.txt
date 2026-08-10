@@ -1,0 +1,3 @@
+# Recording new cassettes / live runs needs the SDK. Replay and the scripted
+# harness do not import it, so a reader reproducing results/ needs nothing here.
+anthropic>=0.69

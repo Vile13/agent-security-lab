@@ -21,10 +21,13 @@ select = [
 # Tests reach into private attributes on purpose: the layout being asserted is
 # exactly the thing under test, and it has no public accessor.
 "**/tests/*" = ["SLF001"]
+# run_experiment.py adjusts sys.path before importing the module packages, so
+# those imports are intentionally not at the top of the file.
+"**/run_experiment.py" = ["E402"]
 
 [tool.pytest.ini_options]
 # The repository root carries the shared `agent_lab` package; each module
 # directory carries its own `src`. Both are on the path so a module's tests can
 # import its own code as `src.*` and the shared code as `agent_lab.*`.
-testpaths = ["tests"]
-pythonpath = ["."]
+testpaths = ["tests", "indirect-prompt-injection/tests"]
+pythonpath = [".", "indirect-prompt-injection"]
