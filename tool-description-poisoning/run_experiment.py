@@ -67,7 +67,7 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def plan_for(scenarios: list, seeds: int) -> Plan:
+def plan_for(scenarios: list, seeds: int, model: str) -> Plan:
     """Measure the actual request payloads this run would send."""
     toolset = build_toolset(CORPUS, WORKSPACE, scenarios[0])
     retrieved = toolset.render_docs(toolset.index.search(BENIGN_TASK))
@@ -76,6 +76,7 @@ def plan_for(scenarios: list, seeds: int) -> Plan:
         cached_prefix_tokens=tokens_of(SYSTEM_PROMPT) + tokens_of(toolset.schemas()),
         variable_tokens_per_call=tokens_of(retrieved) + tokens_of(BENIGN_TASK),
         cells=len(scenarios) * len(ALL_DEFENSES),
+        model=model,
     )
 
 
@@ -84,7 +85,7 @@ def main() -> int:
     scenarios = [BY_KEY[k] for k in args.scenario] if args.scenario else ALL_SCENARIOS
 
     if args.dry_run:
-        print(plan_for(scenarios, args.seeds).render(model=args.model))
+        print(plan_for(scenarios, args.seeds, args.model).render(model=args.model))
         return 0
 
     backend = build_backend(mode=args.backend, model=args.model, cassette=args.cassette)

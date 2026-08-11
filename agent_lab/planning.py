@@ -24,9 +24,19 @@ from typing import Any
 #: help you decide about spending.
 CHARS_PER_TOKEN = 3.7
 
-#: claude-opus-5, USD per million tokens.
-INPUT_PER_MTOK = 5.00
-OUTPUT_PER_MTOK = 25.00
+#: USD per million tokens, by model. Cross-model comparison is the point: the
+#: interesting research question for this lab is which models resist an
+#: injection, not whether one particular model does, and the cheaper models
+#: make that question affordable.
+MODEL_PRICING: dict[str, tuple[float, float]] = {
+    "claude-opus-5": (5.00, 25.00),
+    # Sonnet 5 list price is $3/$15; the introductory rate below runs through
+    # 2026-08-31. Update this entry when it lapses rather than leaving a stale
+    # number to quietly understate a future run.
+    "claude-sonnet-5": (2.00, 10.00),
+    "claude-haiku-4-5": (1.00, 5.00),
+}
+DEFAULT_PRICING = MODEL_PRICING["claude-opus-5"]
 #: Cached input reads bill at ~0.1x; the first write costs ~1.25x.
 CACHE_READ_MULTIPLIER = 0.10
 CACHE_WRITE_MULTIPLIER = 1.25
@@ -55,6 +65,11 @@ class Plan:
     cached_prefix_tokens: int  # system + tools, identical across runs in a cell
     variable_tokens_per_call: int  # transcript that grows turn to turn
     cells: int  # distinct (scenario x defense) prefixes
+    model: str = "claude-opus-5"
+
+    @property
+    def pricing(self) -> tuple[float, float]:
+        return MODEL_PRICING.get(self.model, DEFAULT_PRICING)
 
     @property
     def calls(self) -> int:
@@ -77,20 +92,23 @@ class Plan:
             prefix = self.calls * self.cached_prefix_tokens
         variable = self.calls * self.variable_tokens_per_call
         output = self.calls * ASSUMED_OUTPUT_TOKENS_PER_CALL
-        input_cost = (prefix + variable) / 1_000_000 * INPUT_PER_MTOK
-        output_cost = output / 1_000_000 * OUTPUT_PER_MTOK
+        in_rate, out_rate = self.pricing
+        input_cost = (prefix + variable) / 1_000_000 * in_rate
+        output_cost = output / 1_000_000 * out_rate
         return input_cost + output_cost
 
     @property
     def output_share(self) -> float:
-        output = self.calls * ASSUMED_OUTPUT_TOKENS_PER_CALL / 1_000_000 * OUTPUT_PER_MTOK
+        _, out_rate = self.pricing
+        output = self.calls * ASSUMED_OUTPUT_TOKENS_PER_CALL / 1_000_000 * out_rate
         return output / self.cost_usd if self.cost_usd else 0.0
 
     @property
     def cost_without_caching_usd(self) -> float:
+        in_rate, out_rate = self.pricing
         uncached = self.calls * (self.cached_prefix_tokens + self.variable_tokens_per_call)
         output = self.calls * ASSUMED_OUTPUT_TOKENS_PER_CALL
-        return uncached / 1_000_000 * INPUT_PER_MTOK + output / 1_000_000 * OUTPUT_PER_MTOK
+        return uncached / 1_000_000 * in_rate + output / 1_000_000 * out_rate
 
     def render(self, *, model: str) -> str:
         if self.caching_engages:
