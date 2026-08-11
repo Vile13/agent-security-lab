@@ -31,12 +31,15 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))  # make agent_lab importable when run directly
 
-from rag_injection.experiment import Cell, run_cell
-from rag_injection.scenarios import ALL_SCENARIOS, BY_KEY
+from rag_injection.experiment import SYSTEM_PROMPT, Cell, run_cell
+from rag_injection.scenarios import ALL_SCENARIOS, BENIGN_TASK, BY_KEY
 
 from agent_lab.backends import CassetteBackend, build_backend
 from agent_lab.defenses import ALL_DEFENSES
 from agent_lab.metrics import Rate
+from agent_lab.planning import Plan, tokens_of
+from agent_lab.rag import DocumentIndex
+from agent_lab.tools import Toolset
 
 CORPUS = HERE / "corpus"
 WORKSPACE = HERE / "workspace"
@@ -68,12 +71,39 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="permit writing results/ from the scripted backend (harness, not a model)",
     )
+    p.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="print the run plan and a cost estimate without calling anything",
+    )
     return p.parse_args()
+
+
+def plan_for(scenarios: list, seeds: int) -> Plan:
+    """Measure the actual request payloads this run would send."""
+    scenario = scenarios[0]
+    toolset = Toolset(
+        index=DocumentIndex.from_dir(CORPUS).with_extra(scenario.document),
+        workspace=WORKSPACE,
+    )
+    schemas = toolset.schemas()
+    # The corpus render is the bulk of what grows the transcript turn to turn.
+    retrieved = toolset.render_docs(toolset.index.search(BENIGN_TASK))
+    return Plan(
+        runs=len(scenarios) * len(ALL_DEFENSES) * seeds,
+        cached_prefix_tokens=tokens_of(SYSTEM_PROMPT) + tokens_of(schemas),
+        variable_tokens_per_call=tokens_of(retrieved) + tokens_of(BENIGN_TASK),
+        cells=len(scenarios) * len(ALL_DEFENSES),
+    )
 
 
 def main() -> int:
     args = parse_args()
     scenarios = [BY_KEY[k] for k in args.scenario] if args.scenario else ALL_SCENARIOS
+
+    if args.dry_run:
+        print(plan_for(scenarios, args.seeds).render(model=args.model))
+        return 0
 
     backend = build_backend(mode=args.backend, model=args.model, cassette=args.cassette)
 

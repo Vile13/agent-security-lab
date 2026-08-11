@@ -78,12 +78,21 @@ class AnthropicBackend:
     def complete(self, *, system: str, messages: list[dict], tools: list[dict]) -> dict[str, Any]:
         # Deliberately no `fallbacks` parameter. A server-side fallback would let a
         # different model answer a refused request inside the same call, which is
-        # correct for a product and wrong for an eval: the results table would
-        # silently mix two models. A refusal is recorded as its own outcome instead.
+        # correct for a product and wrong for an eval and wrong here specifically:
+        # the results table would silently mix two models. A refusal is a real and
+        # expected outcome for this scenario -- injected instructions asking an
+        # agent to exfiltrate a credential are exactly what safety classifiers look
+        # for -- so it is recorded as its own outcome rather than rescued.
+        #
+        # Tools render before system, so one breakpoint on the last system block
+        # caches both. Every run in a cell sends the identical prefix, so all but
+        # the first read it at ~0.1x. This changes cost, never output.
         response = self._client.messages.create(
             model=self.model,
             max_tokens=MAX_TOKENS,
-            system=system,
+            system=[
+                {"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}
+            ],
             messages=messages,
             tools=tools,
         )

@@ -75,6 +75,33 @@ def test_record_then_replay_round_trips(tmp_path: Path):
     assert replayer.misses == 0
 
 
+def test_cost_estimate_models_the_cache_minimum():
+    # A cache_control marker below the model's minimum prefix length is ignored
+    # silently by the API. If the estimator assumed it worked, it would quote a
+    # saving that never lands -- the one way this tool could mislead a spend
+    # decision.
+    from agent_lab.planning import CACHE_MIN_TOKENS, Plan
+
+    below = Plan(runs=100, cached_prefix_tokens=CACHE_MIN_TOKENS - 1, cells=10,
+                 variable_tokens_per_call=100)
+    above = Plan(runs=100, cached_prefix_tokens=CACHE_MIN_TOKENS, cells=10,
+                 variable_tokens_per_call=100)
+    assert not below.caching_engages
+    assert above.caching_engages
+    # Below the threshold the estimate must equal the no-caching estimate.
+    assert below.cost_usd == pytest.approx(below.cost_without_caching_usd)
+    assert above.cost_usd < above.cost_without_caching_usd
+
+
+def test_cost_estimate_scales_with_run_count():
+    from agent_lab.planning import Plan
+
+    small = Plan(runs=10, cached_prefix_tokens=600, cells=5, variable_tokens_per_call=100)
+    large = Plan(runs=100, cached_prefix_tokens=600, cells=5, variable_tokens_per_call=100)
+    assert large.cost_usd > small.cost_usd
+    assert 0.0 < large.output_share < 1.0
+
+
 def test_request_key_ignores_dict_ordering():
     # Cassette keys must not depend on how a dict happened to be constructed, or
     # a replay would miss on a semantically identical request.
